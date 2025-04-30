@@ -1,0 +1,25 @@
+#!/bin/sh
+
+LDAP_SERVER="ldap://lbdc-use1.sea.corp.expecn.com:389"
+CSV="temp.csv"
+[ -f $CSV ] && rm $CSV
+SAPW=`cat s-workflow-orchestra.cred`
+SGC=0
+for sg in $*; do
+   printf "%s..." "${sg}"
+   USERS=0
+   usernames=`ldapsearch -x -H $LDAP_SERVER -D "SEA\\s-workflow-orchestra" -w $SAPW -b 'DC=SEA,DC=CORP,DC=EXPECN,DC=com' "(memberOf=CN=${sg},OU=Security Groups,DC=SEA,DC=CORP,DC=EXPECN,DC=com)" mail | grep -v 's-' | grep "mail:" | cut -d " " -f 2 | awk -F\@ '{print "member,user," $1 "," $1 "@expediagroup.com," $1 "\n"}'`
+   for u in $usernames; do
+      echo $u >>$CSV
+      let USERS=USERS+1
+   done
+   echo $USERS users
+   let SGC=SGC+1
+done
+echo $SGC SGs
+
+TEMP=$(mktemp)
+cat $CSV | sort | uniq >$TEMP
+mv $TEMP $CSV
+
+echo `cat $CSV | wc -l` unique users.
